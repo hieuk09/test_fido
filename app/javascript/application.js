@@ -4,4 +4,32 @@ import "controllers"
 
 let result = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
 
-alert(result);
+if (result === true) {
+  navigator.credentials.create({
+    publicKey: {
+      rp: {
+        name: "test-fido",
+        id: "test-fido.herokuapp.com",
+      },
+      user: {
+        id: new Uint8Array(16),
+        name: "jdoe@example.com",
+        displayName: "John Doe"
+      },
+      publicKeyCredParams: {
+        type: "public-key",
+        alg: -7
+      },
+      authenticatorSelection: {
+        authenticatorAttachment: "platform",
+        userVerification: "required"
+      }
+    }
+  }).then(function (newCredentialInfo) {
+    var response = newCredentialInfo.response;
+    var clientExtensionsResults = newCredentialInfo.getClientExtensionResults();
+    alert(clientExtensionsResults);
+  });
+} else {
+  alert("No FIDO support")
+}
