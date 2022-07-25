@@ -29,6 +29,8 @@ if (result === true) {
     var response = newCredentialInfo.response;
     var clientExtensionsResults = newCredentialInfo.getClientExtensionResults();
     alert(clientExtensionsResults);
+  }).catch(function (err) {
+    alert(err);
   });
 } else {
   alert("No FIDO support")
