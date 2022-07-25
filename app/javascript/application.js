@@ -16,6 +16,7 @@ if (result === true) {
         name: "jdoe@example.com",
         displayName: "John Doe"
       },
+      challenge: "123456",
       publicKeyCredParams: {
         type: "public-key",
         alg: -7
