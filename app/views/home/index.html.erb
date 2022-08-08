@@ -1,2 +1,63 @@
 <h1>Home#index</h1>
 <p>Find me in app/views/home/index.html.erb</p>
+
+<form>
+  <button onclick="register()">Register</button>
+  <button onclick="authenticate()">Authenticate</button>
+</form>
+
+<script>
+  const email = "jdoe@example.com";
+
+  async function setup(challenge) {
+    let isUVPAA = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+
+    if (isUVPAA === true) {
+      navigator.credentials.create({
+        publicKey: {
+          rp: {
+            name: "test-fido",
+            id: "localhost",
+          },
+          user: {
+            id: new Uint8Array(16),
+            name: email,
+          },
+          challenge: challenge,
+          pubKeyCredParams: [{
+            type: "public-key",
+            alg: -7
+          }],
+          authenticatorSelection: {
+            authenticatorAttachment: "platform",
+            userVerification: "required"
+          }
+        }
+      }).then(function (newCredentialInfo) {
+        var response = newCredentialInfo.response;
+        var clientExtensionsResults = newCredentialInfo.getClientExtensionResults();
+      }).catch(function (err) {
+        alert(err);
+      });
+    } else {
+      alert("No FIDO support")
+    }
+  };
+
+  async function register() {
+      data = { uid: "" }
+      const response = await fetch(
+          "/identities.json",
+          method: "POST",
+          mode: "cors",
+          cache: "no-cache",
+          credentials: "same-origin",
+          headers: {
+              "Content-Type": "application/json"
+            },
+          body: JSON.stringify(data)
+      )
+
+      alert(response.json());
+  }
+</script>
