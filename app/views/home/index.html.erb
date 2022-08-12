@@ -1,13 +1,5 @@
-<h1>Home#index</h1>
-<p>Find me in app/views/home/index.html.erb</p>
-
-<form>
-  <button onclick="register()">Register</button>
-  <button onclick="authenticate()">Authenticate</button>
-</form>
-
 <script>
-  const email = "jdoe@example.com";
+  var email = "jdoe@example.com";
 
   async function setup(challenge) {
     let isUVPAA = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
@@ -21,6 +13,7 @@
           },
           user: {
             id: new Uint8Array(16),
+            displayName: "jdoe@email.com",
             name: email,
           },
           challenge: challenge,
@@ -40,24 +33,40 @@
         alert(err);
       });
     } else {
-      alert("No FIDO support")
+      alert("No FIDO support");
     }
   };
 
   async function register() {
-      data = { uid: "" }
+      const data = { uid: email };
       const response = await fetch(
           "/identities.json",
-          method: "POST",
-          mode: "cors",
-          cache: "no-cache",
-          credentials: "same-origin",
-          headers: {
-              "Content-Type": "application/json"
-            },
-          body: JSON.stringify(data)
-      )
+            {
+              method: "POST",
+              mode: "cors",
+              cache: "no-cache",
+              credentials: "same-origin",
+              headers: {
+                  "Content-Type": "application/json"
+                },
+              body: JSON.stringify(data)
+            }
+        );
 
-      alert(response.json());
-  }
+      const response_data = await response.json()
+      const challengeArrayBuffer = Uint8Array.from(
+          atob(response_data["challenge"]),
+          c => c.charCodeAt(0)
+        ).buffer;
+      return setup(challengeArrayBuffer);
+  };
 </script>
+
+<h1>Home#index</h1>
+<p>Find me in app/views/home/index.html.erb</p>
+
+<form>
+  <button onclick="register()">Register</button>
+  <button onclick="authenticate()">Authenticate</button>
+</form>
+
