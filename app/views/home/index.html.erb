@@ -1,8 +1,13 @@
 <script>
   var email = "jdoe@example.com";
 
-  async function setup(challenge) {
+  function convert_to_array(string) {
+      return Uint8Array.from(atob(string), c => c.charCodeAt(0));
+    };
+
+  async function setup(identity_id, challenge) {
     let isUVPAA = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+    const id = convert_to_array(identity_id);
 
     if (isUVPAA === true) {
       navigator.credentials.create({
@@ -12,8 +17,8 @@
             id: "localhost",
           },
           user: {
-            id: new Uint8Array(16),
-            displayName: "jdoe@email.com",
+            id: id,
+            displayName: email,
             name: email,
           },
           challenge: challenge,
@@ -26,9 +31,32 @@
             userVerification: "required"
           }
         }
-      }).then(function (newCredentialInfo) {
-        var response = newCredentialInfo.response;
-        var clientExtensionsResults = newCredentialInfo.getClientExtensionResults();
+      }).then(async function (newCredentialInfo) {
+          debugger
+          const decodedClientData = window.btoa(String.fromCharCode(...Array.from(new Uint8Array(newCredentialInfo.response.clientDataJSON))));
+          const decodedAttestationObject = window.btoa(String.fromCharCode(...Array.from(new Uint8Array(newCredentialInfo.response.attestationObject))));
+
+          const data = {
+              identity: {
+                  public_key_id: newCredentialInfo.id,
+                  attestation_object: decodedAttestationObject,
+                  client_data: decodedClientData
+                }
+            };
+          const response = await fetch(
+              `/identities/${identity_id}.json`,
+              {
+                  method: "PUT",
+                    mode: "cors",
+                    cache: "no-cache",
+                    credentials: "same-origin",
+                    headers: {
+                        "Content-Type": "application/json"
+                      },
+                    body: JSON.stringify(data)
+                }
+            );
+
       }).catch(function (err) {
         alert(err);
       });
@@ -54,12 +82,43 @@
         );
 
       const response_data = await response.json()
-      const challengeArrayBuffer = Uint8Array.from(
-          atob(response_data["challenge"]),
-          c => c.charCodeAt(0)
-        ).buffer;
-      return setup(challengeArrayBuffer);
+      const challengeArrayBuffer = convert_to_array(response_data['challenge']).buffer;
+      return setup(response_data["identity"]["id"], challengeArrayBuffer);
   };
+
+    async function authenticate(identityId) {
+        const identityResponse = await fetch(
+            `/identities/${identityId}.json`,
+            {
+                method: 'GET',
+                mode: 'cors',
+                cache: "no-cache",
+                credentials: "same-origin",
+                headers: {
+                    "Content-Type": "application/json"
+                  }
+              }
+          )
+
+        const identity = await identityResponse.json();
+
+        console.log(identity);
+        const publicKeyCredentialRequestOptions = {
+            challenge: convert_to_array(identity['challenge']),
+            allowCredentials: [{
+                id: convert_to_array(identity['identity']['credential_id']),
+                type: 'public-key',
+                transports: ['platform'],
+              }],
+            timeout: 60000,
+          }
+
+        const assertion = await navigator.credentials.get({
+            publicKey: publicKeyCredentialRequestOptions
+          });
+
+        console.log(assertion)
+      };
 </script>
 
 <h1>Home#index</h1>
@@ -67,6 +126,9 @@
 
 <form>
   <button onclick="register()">Register</button>
-  <button onclick="authenticate()">Authenticate</button>
+
+  <%- @identities.each do |identity| %>
+    <button onclick="authenticate(<%= identity.id %>)">Authenticate <%= identity.id %></button>
+  <%- end %>
 </form>
 
