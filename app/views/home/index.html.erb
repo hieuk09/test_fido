@@ -1,13 +1,22 @@
 <script>
   var email = "jdoe@example.com";
 
-  function convert_to_array(string) {
+  function convert_input_to_bytes(string) {
+      let utf8Encode = new TextEncoder();
+      return utf8Encode.encode(string);
+    };
+
+  function convert_string_to_bytes(string) {
       return Uint8Array.from(atob(string), c => c.charCodeAt(0));
+    };
+
+  function convert_bytes_to_string(bytes) {
+      return window.btoa(String.fromCharCode(...Array.from(new Uint8Array(bytes))));
     };
 
   async function setup(identity_id, challenge) {
     let isUVPAA = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
-    const id = convert_to_array(identity_id);
+    const id = convert_input_to_bytes(identity_id);
 
     if (isUVPAA === true) {
       navigator.credentials.create({
@@ -32,9 +41,8 @@
           }
         }
       }).then(async function (newCredentialInfo) {
-          debugger
-          const decodedClientData = window.btoa(String.fromCharCode(...Array.from(new Uint8Array(newCredentialInfo.response.clientDataJSON))));
-          const decodedAttestationObject = window.btoa(String.fromCharCode(...Array.from(new Uint8Array(newCredentialInfo.response.attestationObject))));
+          const decodedClientData = convert_bytes_to_string(newCredentialInfo.response.clientDataJSON);
+          const decodedAttestationObject = convert_bytes_to_string(newCredentialInfo.response.attestationObject);
 
           const data = {
               identity: {
@@ -82,15 +90,15 @@
         );
 
       const response_data = await response.json()
-      const challengeArrayBuffer = convert_to_array(response_data['challenge']).buffer;
+      const challengeArrayBuffer = convert_input_to_bytes(response_data['challenge']).buffer;
       return setup(response_data["identity"]["id"], challengeArrayBuffer);
   };
 
     async function authenticate(identityId) {
         const identityResponse = await fetch(
-            `/identities/${identityId}.json`,
+            `/identities/${identityId}/initiate.json`,
             {
-                method: 'GET',
+                method: 'POST',
                 mode: 'cors',
                 cache: "no-cache",
                 credentials: "same-origin",
@@ -104,9 +112,9 @@
 
         console.log(identity);
         const publicKeyCredentialRequestOptions = {
-            challenge: convert_to_array(identity['challenge']),
+            challenge: convert_input_to_bytes(identity['challenge']),
             allowCredentials: [{
-                id: convert_to_array(identity['identity']['credential_id']),
+                id: convert_string_to_bytes(identity['identity']['credential_id']),
                 type: 'public-key',
                 transports: ['platform'],
               }],
@@ -114,10 +122,37 @@
           }
 
         const assertion = await navigator.credentials.get({
-            publicKey: publicKeyCredentialRequestOptions
+            publicKey: publicKeyCredentialRequestOptions,
+            userVerification: 'preferred'
           });
 
-        console.log(assertion)
+        const assertionResponse = assertion.response;
+
+        console.log(assertion);
+
+        const verifyData = {
+            authentication_data: convert_bytes_to_string(assertionResponse.authenticatorData),
+            client_data: convert_bytes_to_string(assertionResponse.clientDataJSON),
+            signature: convert_bytes_to_string(assertionResponse.signature),
+            user_handle: convert_bytes_to_string(assertionResponse.userHandle)
+          };
+
+        const verifyResponse = await fetch(
+            `/identities/${identityId}/verify.json`,
+            {
+                method: 'POST',
+                mode: 'cors',
+                cache: "no-cache",
+                credentials: "same-origin",
+                headers: {
+                    "Content-Type": "application/json"
+                  },
+                body: JSON.stringify(verifyData)
+              }
+          );
+
+        const verifyResponseData = await verifyResponse.json();
+        console.log(verifyResponseData);
       };
 </script>
 

@@ -31,11 +31,11 @@ class IdentitiesController < ApplicationController
       )
       render json: { identity: identity }
     else
-      render json: { error: 'challenge does not match' }
+      render json: { error: 'challenge does not match' }, status: 400
     end
   end
 
-  def show
+  def initiate
     identity = Identity.find(params[:id])
     challenge = Base64.strict_encode64(SecureRandom.random_bytes(32))
     session[identity.id] = challenge
@@ -47,5 +47,21 @@ class IdentitiesController < ApplicationController
       },
       challenge: challenge
     }
+  end
+
+  def verify
+    identity = Identity.find(params[:id])
+    user_handle = Base64.urlsafe_decode64(params['user_handle']).to_i
+
+    if identity && identity.id == user_handle
+      client_data = JSON.parse(Base64.urlsafe_decode64(params['client_data']));
+
+      if session[identity.id] == client_data['challenge']
+        uri = URI.parse(client_data['origin'])
+
+        if uri.scheme == request.scheme && uri.host == request.host
+        end
+      end
+    end
   end
 end
