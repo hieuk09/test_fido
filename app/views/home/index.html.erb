@@ -23,7 +23,7 @@
         publicKey: {
           rp: {
             name: "test-fido",
-            id: "localhost",
+            id: "domain.com",
           },
           user: {
             id: id,
@@ -91,7 +91,8 @@
 
       const response_data = await response.json()
       const challengeArrayBuffer = convert_input_to_bytes(response_data['challenge']).buffer;
-      return setup(response_data["identity"]["id"], challengeArrayBuffer);
+      setup(response_data["identity"]["id"], challengeArrayBuffer);
+      return false;
   };
 
     async function authenticate(identityId) {
@@ -153,6 +154,8 @@
 
         const verifyResponseData = await verifyResponse.json();
         console.log(verifyResponseData);
+
+        return false;
       };
 </script>
 
@@ -160,10 +163,10 @@
 <p>Find me in app/views/home/index.html.erb</p>
 
 <form>
-  <button onclick="register()">Register</button>
+  <button type="button" onclick="register()">Register</button>
 
   <%- @identities.each do |identity| %>
-    <button onclick="authenticate(<%= identity.id %>)">Authenticate <%= identity.id %></button>
+    <button type="button" onclick="authenticate(<%= identity.id %>)">Authenticate <%= identity.id %></button>
   <%- end %>
 </form>
 
